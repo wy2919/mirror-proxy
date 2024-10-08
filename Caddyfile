@@ -1,0 +1,191 @@
+mirror.{$DOMAIN} {
+    handle_path /docker-production-cloudflare/* {
+        reverse_proxy https://production.cloudflare.docker.com {
+            header_up Host production.cloudflare.docker.com
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Set-Cookie production.cloudflare.docker.com mirror.{$DOMAIN}
+        }
+    }
+
+    handle_path /docker-token/* {
+        reverse_proxy https://auth.docker.io {
+            header_up Host auth.docker.io
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Set-Cookie auth.docker.io mirror.{$DOMAIN}
+        }
+    }
+
+    @docker {
+        header_regexp User-Agent docker
+    }
+
+    handle @docker {
+        reverse_proxy * https://registry-1.docker.io {
+            header_up Host registry-1.docker.io
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Set-Cookie registry-1.docker.io mirror.{$DOMAIN}
+            header_down Www-Authenticate "Bearer realm=\"https://mirror.{$DOMAIN}/docker-token/token\",service=\"registry.docker.io\""
+            header_down Location "https://production.cloudflare.docker.com" "https://mirror.{$DOMAIN}/docker-production-cloudflare"
+        }
+    }
+
+    @git {
+        header_regexp User-Agent git
+    }
+
+    handle @git {
+        reverse_proxy * https://github.com {
+            header_up Host github.com
+            header_down Set-Cookie github.com mirror.{$DOMAIN}
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Location "https://objects.githubusercontent.com" "https://github.{$DOMAIN}/githubusercontent-download"
+        }
+    }
+}
+
+gcr.{$DOMAIN} {
+    @docker {
+        header_regexp User-Agent docker
+    }
+
+    handle @docker {
+        reverse_proxy * https://gcr.io {
+            header_up Host gcr.io
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Set-Cookie gcr.io gcr.{$DOMAIN}
+            header_down Www-Authenticate "Bearer realm=\"https://gcr.{$DOMAIN}/v2/token\",service=\"gcr.io\""
+        }
+    }
+}
+
+ghcr.{$DOMAIN} {
+    @docker {
+        header_regexp User-Agent docker
+    }
+
+    handle @docker {
+        reverse_proxy * https://ghcr.io {
+            header_up Host ghcr.io
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Set-Cookie ghcr.io ghcr.{$DOMAIN}
+            header_down Www-Authenticate "Bearer realm=\"https://ghcr.{$DOMAIN}/token\",service=\"ghcr.io\""
+        }
+    }
+}
+
+quay.{$DOMAIN} {
+    @docker {
+        header_regexp User-Agent docker
+    }
+
+    handle @docker {
+        reverse_proxy * https://quay.io {
+            header_up Host quay.io
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Set-Cookie quay.io quay.{$DOMAIN}
+            header_down Www-Authenticate "Bearer realm=\"https://quay.{$DOMAIN}/v2/auth\",service=\"quay.io\""
+        }
+    }
+}
+
+k8s-io.{$DOMAIN} {
+    handle_path /dev/* {
+        reverse_proxy * https://us-west1-docker.pkg.dev {
+            header_up Host us-west1-docker.pkg.dev
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_down Set-Cookie us-west1-docker.pkg.dev k8s-io.{$DOMAIN}
+        }
+    }
+
+    handle_path /amazonaws/* {
+        reverse_proxy * https://prod-registry-k8s-io-us-west-1.s3.dualstack.us-west-1.amazonaws.com {
+            header_up Host prod-registry-k8s-io-us-west-1.s3.dualstack.us-west-1.amazonaws.com
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_down Set-Cookie prod-registry-k8s-io-us-west-1.s3.dualstack.us-west-1.amazonaws.com k8s-io.{$DOMAIN}
+        }
+    }
+
+    @docker {
+        header_regexp User-Agent docker
+    }
+
+    handle @docker {
+        reverse_proxy * https://registry.k8s.io {
+            header_up Host registry.k8s.io
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Set-Cookie registry.k8s.io k8s-io.{$DOMAIN}
+            header_down Www-Authenticate "Bearer realm=\"https://k8s-io.{$DOMAIN}/v2/token\",service=\"registry.k8s.io\""
+            header_down Location "^https://[a-zA-Z0-9-]+.docker.pkg.dev" "https://k8s-pkg-dev.{$DOMAIN}"
+            header_down Location "^https://[a-zA-Z0-9-]+.s3.dualstack.[a-zA-Z0-9-]+.amazonaws.com" "https://k8s-io.{$DOMAIN}/amazonaws"
+        }
+    }
+}
+
+k8s-pkg-dev.{$DOMAIN} {
+    reverse_proxy * https://us-west1-docker.pkg.dev {
+        header_up Host us-west1-docker.pkg.dev
+        header_up X-Real-IP {http.request.remote.host}
+        header_up X-Forwarded-Port {http.request.port}
+        header_down Set-Cookie us-west1-docker.pkg.dev k8s-pkg-dev.{$DOMAIN}
+    }
+}
+
+github.{$DOMAIN} {
+    handle_path /githubusercontent-download/* {
+        reverse_proxy * https://objects.githubusercontent.com {
+            header_up Host objects.githubusercontent.com
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Set-Cookie objects.githubusercontent.com github.{$DOMAIN}
+        }
+    }
+
+    reverse_proxy * https://github.com {
+        header_up Host github.com
+        header_up X-Real-IP {http.request.remote.host}
+        header_up X-Forwarded-For {http.request.remote.host}
+        header_up X-Forwarded-Port {http.request.port}
+        header_up X-Forwarded-Proto {http.request.scheme}
+        header_down Set-Cookie github.com github.{$DOMAIN}
+        header_down Location "https://objects.githubusercontent.com" "https://github.{$DOMAIN}/githubusercontent-download"
+    }
+}
+
+github-file.{$DOMAIN} {
+    reverse_proxy * https://raw.githubusercontent.com {
+        header_up Host raw.githubusercontent.com
+        header_up X-Real-IP {http.request.remote.host}
+        header_up X-Forwarded-For {http.request.remote.host}
+        header_up X-Forwarded-Port {http.request.port}
+        header_up X-Forwarded-Proto {http.request.scheme}
+        header_down Set-Cookie raw.githubusercontent.com github-file.{$DOMAIN}
+    }
+}

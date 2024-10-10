@@ -197,6 +197,6 @@ github-file.{$DOMAIN}:{$PORT} {
        header_up X-Forwarded-Port {http.request.port}
        header_up X-Forwarded-Proto {http.request.scheme}
        header_down Set-Cookie github.com github.{$DOMAIN}
-       header_down Location "https://objects.githubusercontent.com" "https://github.{$DOMAIN}/githubusercontent-download"
+       header_down Location "https://objects.githubusercontent.com" "https://github-file.{$DOMAIN}/githubusercontent-download"
    }
 }

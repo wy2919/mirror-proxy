@@ -43,21 +43,7 @@ mirror.{$DOMAIN}:{$PORT} {
         }
     }
 
-    @git {
-        header_regexp User-Agent git
-    }
 
-    handle @git {
-        reverse_proxy * https://github.com {
-            header_up Host github.com
-            header_down Set-Cookie github.com mirror.{$DOMAIN}
-            header_up X-Real-IP {http.request.remote.host}
-            header_up X-Forwarded-For {http.request.remote.host}
-            header_up X-Forwarded-Port {http.request.port}
-            header_up X-Forwarded-Proto {http.request.scheme}
-            header_down Location "https://objects.githubusercontent.com" "https://github-file.{$DOMAIN}/githubusercontent-download"
-        }
-    }
 }
 
 gcr.{$DOMAIN}:{$PORT} {
@@ -162,14 +148,34 @@ k8s-pkg-dev.{$DOMAIN}:{$PORT} {
 }
 
 github.{$DOMAIN}:{$PORT} {
+
+
+
+    @git {
+            header_regexp User-Agent git
+        }
+
+        handle @git {
+            reverse_proxy * https://github.com {
+                header_up Host github.com
+                header_down Set-Cookie github.com mirror.{$DOMAIN}
+                header_up X-Real-IP {http.request.remote.host}
+                header_up X-Forwarded-For {http.request.remote.host}
+                header_up X-Forwarded-Port {http.request.port}
+                header_up X-Forwarded-Proto {http.request.scheme}
+                header_down Location "https://objects.githubusercontent.com" "https://github-file.{$DOMAIN}/githubusercontent-download"
+            }
+        }
+
+
     reverse_proxy * https://raw.githubusercontent.com {
-        header_up Host raw.githubusercontent.com
-        header_up X-Real-IP {http.request.remote.host}
-        header_up X-Forwarded-For {http.request.remote.host}
-        header_up X-Forwarded-Port {http.request.port}
-        header_up X-Forwarded-Proto {http.request.scheme}
-        header_down Set-Cookie raw.githubusercontent.com github-file.{$DOMAIN}
-    }
+            header_up Host raw.githubusercontent.com
+            header_up X-Real-IP {http.request.remote.host}
+            header_up X-Forwarded-For {http.request.remote.host}
+            header_up X-Forwarded-Port {http.request.port}
+            header_up X-Forwarded-Proto {http.request.scheme}
+            header_down Set-Cookie raw.githubusercontent.com github-file.{$DOMAIN}
+        }
 }
 
 github-file.{$DOMAIN}:{$PORT} {
@@ -183,7 +189,7 @@ github-file.{$DOMAIN}:{$PORT} {
            header_down Set-Cookie objects.githubusercontent.com github.{$DOMAIN}
        }
     }
-   
+
    reverse_proxy * https://github.com {
        header_up Host github.com
        header_up X-Real-IP {http.request.remote.host}
